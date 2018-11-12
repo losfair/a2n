@@ -74,8 +74,6 @@ func BuildRouter(config *RouterConfig) http.Handler {
 				req.URL.Scheme = "http"
 			}
 
-			req.URL.Host = req.Host
-
 			targetName := strings.Split(req.Host, ".")[0]
 			var targetIP net.IP
 
@@ -87,7 +85,6 @@ func BuildRouter(config *RouterConfig) http.Handler {
 
 			if targetIP == nil {
 				log.Print("invalid address")
-				req.URL.Host = "" // FIXME: this is a hack to trigger a proxy error.
 				return
 			}
 
@@ -105,7 +102,6 @@ func BuildRouter(config *RouterConfig) http.Handler {
 
 			if !targetAllowed {
 				log.Print("access denied")
-				req.URL.Host = "" // FIXME: this is a hack to trigger a proxy error.
 				return
 			}
 
@@ -113,6 +109,9 @@ func BuildRouter(config *RouterConfig) http.Handler {
 				// explicitly disable User-Agent so it's not set to default value
 				req.Header.Set("User-Agent", "")
 			}
+
+			req.Header.Set("Host", req.Host)
+			req.URL.Host = targetIP.String() // req.URL.Host is left empty before here; therefore, any early returns trigger a proxy error.
 		},
 	}
 }
