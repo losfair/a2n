@@ -10,8 +10,9 @@ import (
 )
 
 type Config struct {
-	Control string
-	Routers []*a2n.RouterConfigTemplate
+	RemoteConfigPath string
+	Control          string
+	Routers          []*a2n.RouterConfigTemplate
 }
 
 var servers = make(map[string]*a2n.RouterConfig)
@@ -68,6 +69,9 @@ func main() {
 		log.Fatalf("unable to parse config file '%s': %+v", configFile, err)
 	}
 
+	manager := a2n.NewConfigManager(config.RemoteConfigPath)
+	manager.Start()
+
 	for _, router := range config.Routers {
 		router := router
 
@@ -75,7 +79,7 @@ func main() {
 			panic("duplicate listen addresses")
 		}
 
-		rc, err := a2n.NewRouterConfig(router)
+		rc, err := a2n.NewRouterConfig(manager, router)
 		if err != nil {
 			log.Fatalf("unable to load router config (%s): %+v", router.ListenAddr, err)
 		}

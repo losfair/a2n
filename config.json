@@ -1,4 +1,5 @@
 {
+  "RemoteConfigPath": "https://raw.githubusercontent.com/losfair/mnet-config/master",
   "Control": "127.0.0.1:4120",
   "Routers": [
     {

@@ -12,7 +12,7 @@ import (
 type RouterConfig struct {
 	mutex sync.RWMutex
 
-	nameToIP             map[string]net.IP
+	manager              *ConfigManager
 	allowedTargetsParsed []*net.IPNet
 	allowArbitraryTarget bool
 	backendHTTPS         bool
@@ -20,14 +20,14 @@ type RouterConfig struct {
 
 type RouterConfigTemplate struct {
 	ListenAddr           string // for external use
-	NameToIP             map[string]net.IP
 	AllowedTargets       []string
 	AllowArbitraryTarget bool
 	BackendHTTPS         bool
 }
 
-func NewRouterConfig(tpl *RouterConfigTemplate) (*RouterConfig, error) {
+func NewRouterConfig(manager *ConfigManager, tpl *RouterConfigTemplate) (*RouterConfig, error) {
 	c := new(RouterConfig)
+	c.manager = manager
 	if err := c.Update(tpl); err != nil {
 		return nil, err
 	}
@@ -48,11 +48,6 @@ func (c *RouterConfig) Update(tpl *RouterConfigTemplate) error {
 
 	c.mutex.Lock()
 
-	c.nameToIP = tpl.NameToIP
-	if c.nameToIP == nil {
-		c.nameToIP = make(map[string]net.IP)
-	}
-
 	c.allowedTargetsParsed = allowedTargetsParsed
 	c.allowArbitraryTarget = tpl.AllowArbitraryTarget
 	c.backendHTTPS = tpl.BackendHTTPS
@@ -65,6 +60,8 @@ func (c *RouterConfig) Update(tpl *RouterConfigTemplate) error {
 func BuildRouter(config *RouterConfig) http.Handler {
 	return &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
+			config.manager.SignalUpdate()
+
 			config.mutex.RLock()
 			defer config.mutex.RUnlock()
 
@@ -77,7 +74,7 @@ func BuildRouter(config *RouterConfig) http.Handler {
 			targetName := strings.Split(req.Host, ".")[0]
 			var targetIP net.IP
 
-			if ip, ok := config.nameToIP[targetName]; ok {
+			if ip, ok := config.manager.GetNameByIP(targetName); ok {
 				targetIP = ip
 			} else {
 				targetIP = net.ParseIP(strings.Join(strings.Split(targetName, "-"), "."))
