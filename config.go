@@ -12,6 +12,7 @@ import (
 )
 
 const MaxRemoteConfigBodySize = 1048576
+const MinRemoteConfigSyncDelay = 60 * time.Second
 
 type ConfigManager struct {
 	mutex sync.RWMutex
@@ -40,7 +41,7 @@ func (m *ConfigManager) Run() {
 
 	for {
 		m.silentlyUpdateRoutingTable()
-		<-time.After(10 * time.Second)
+		<-time.After(MinRemoteConfigSyncDelay)
 		<-m.updateSignal
 	}
 }
@@ -66,8 +67,8 @@ func (m *ConfigManager) silentlyUpdateRoutingTable() {
 		return
 	}
 
-	table := make(map[string]string)
-	err = json.Unmarshal(raw, table)
+	var table map[string]string
+	err = json.Unmarshal(raw, &table)
 	if err != nil {
 		log.Printf("unable to parse routing table: %+v", err)
 		return
